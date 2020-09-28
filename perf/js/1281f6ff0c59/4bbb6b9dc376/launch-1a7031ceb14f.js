@@ -2,8 +2,8 @@
   window._satellite = window._satellite || {};
   window._satellite.container = {
   "buildInfo": {
-    "buildDate": "2020-09-16T14:42:15Z",
-    "environment": "development",
+    "buildDate": "2020-09-25T16:12:13Z",
+    "environment": "production",
     "turbineBuildDate": "2020-08-10T20:14:17Z",
     "turbineVersion": "27.0.0"
   },
@@ -13,43 +13,6 @@
     "adobe-target-v2": {
       "displayName": "Adobe Target v2",
       "modules": {
-        "adobe-target-v2/lib/firePageLoad.js": {
-          "name": "fire-page-load",
-          "displayName": "Fire Page Load Request",
-          "script": function(module, exports, require, turbine) {
-"use strict";
-
-/* eslint-disable import/no-extraneous-dependencies */
-var win = require("@adobe/reactor-window");
-
-var _require = require("./modules/libs/at-launch"),
-    initConfig = _require.initConfig,
-    initDelivery = _require.initDelivery;
-
-var initPageLoadSettings = require("./modules/page-load");
-var messages = require("./messages");
-
-function isLibraryPresent() {
-  return win.adobe && win.adobe.target && win.adobe.target.VERSION;
-}
-
-module.exports = function (settings) {
-  var targetSettings = initPageLoadSettings(settings);
-
-  if (!isLibraryPresent()) {
-    if (win.console) {
-      turbine.logger.warn(messages.NO_REQUEST);
-    }
-
-    return;
-  }
-
-  initConfig(targetSettings);
-  initDelivery();
-};
-          }
-
-        },
         "adobe-target-v2/lib/loadTarget.js": {
           "name": "load-target",
           "displayName": "Load Target",
@@ -152,6 +115,236 @@ module.exports = function () {
   if (!shouldUseOptIn() || isTargetApproved()) {
     requestHandler(augmentTracker);
   }
+};
+          }
+
+        },
+        "adobe-target-v2/lib/firePageLoad.js": {
+          "name": "fire-page-load",
+          "displayName": "Fire Page Load Request",
+          "script": function(module, exports, require, turbine) {
+"use strict";
+
+/* eslint-disable import/no-extraneous-dependencies */
+var win = require("@adobe/reactor-window");
+
+var _require = require("./modules/libs/at-launch"),
+    initConfig = _require.initConfig,
+    initDelivery = _require.initDelivery;
+
+var initPageLoadSettings = require("./modules/page-load");
+var messages = require("./messages");
+
+function isLibraryPresent() {
+  return win.adobe && win.adobe.target && win.adobe.target.VERSION;
+}
+
+module.exports = function (settings) {
+  var targetSettings = initPageLoadSettings(settings);
+
+  if (!isLibraryPresent()) {
+    if (win.console) {
+      turbine.logger.warn(messages.NO_REQUEST);
+    }
+
+    return;
+  }
+
+  initConfig(targetSettings);
+  initDelivery();
+};
+          }
+
+        },
+        "adobe-target-v2/lib/modules/load-target.js": {
+          "script": function(module, exports, require, turbine) {
+"use strict";
+
+/* eslint-disable import/no-extraneous-dependencies */
+var win = require("@adobe/reactor-window");
+var doc = require("@adobe/reactor-document");
+var Promise = require("@adobe/reactor-promise");
+var messages = require("../messages");
+
+var _require = require("./params-store"),
+    getParams = _require.getParams,
+    getPageLoadParams = _require.getPageLoadParams;
+
+var _require2 = require("../targetSettings"),
+    targetSettings = _require2.targetSettings;
+
+var overrideProps = require("./object-override");
+
+var _require3 = require("../librarySettings"),
+    TARGET_DEFAULT_SETTINGS = _require3.TARGET_DEFAULT_SETTINGS;
+
+var OVERRIDABLE_SETTINGS = ["enabled", "clientCode", "imsOrgId", "serverDomain", "cookieDomain", "timeout", "defaultContentHiddenStyle", "defaultContentVisibleStyle", "bodyHiddenStyle", "bodyHidingEnabled", "selectorsPollingTimeout", "visitorApiTimeout", "overrideMboxEdgeServer", "overrideMboxEdgeServerTimeout", "optoutEnabled", "optinEnabled", "secureOnly", "supplementalDataIdParamTimeout", "authoringScriptUrl", "urlSizeLimit", "endpoint", "pageLoadEnabled", "viewsEnabled", "analyticsLogging", "serverState", "globalMboxName"];
+
+function isStandardMode(document) {
+  var compatMode = document.compatMode,
+      documentMode = document.documentMode;
+
+  var standardMode = compatMode && compatMode === "CSS1Compat";
+  var ie9OrModernBrowser = documentMode ? documentMode >= 9 : true;
+
+  return standardMode && ie9OrModernBrowser;
+}
+
+function overridePublicApi(window) {
+  /* eslint-disable no-param-reassign */
+  var noop = function noop() {};
+  var noopPromise = function noopPromise() {
+    return Promise.resolve();
+  };
+  window.adobe = window.adobe || {};
+  window.adobe.target = {
+    VERSION: "",
+    event: {},
+    getOffer: noop,
+    getOffers: noopPromise,
+    applyOffer: noop,
+    applyOffers: noopPromise,
+    sendNotifications: noop,
+    trackEvent: noop,
+    triggerView: noop,
+    registerExtension: noop,
+    init: noop
+  };
+  window.mboxCreate = noop;
+  window.mboxDefine = noop;
+  window.mboxUpdate = noop;
+  /* eslint-disable no-param-reassign */
+}
+
+function isLibraryPresent() {
+  return win.adobe && win.adobe.target && typeof win.adobe.target.getOffer !== "undefined";
+}
+
+function initLibrarySettings() {
+  if (isLibraryPresent()) {
+    turbine.logger.warn(messages.ALREADY_INITIALIZED);
+    return null;
+  }
+
+  targetSettings.mboxParams = getParams();
+  targetSettings.globalMboxParams = getPageLoadParams();
+
+  overrideProps(targetSettings, win.targetGlobalSettings || {}, OVERRIDABLE_SETTINGS);
+  overrideProps(targetSettings, TARGET_DEFAULT_SETTINGS || {}, ["version"]);
+
+  if (!isStandardMode(doc)) {
+    targetSettings.enabled = false;
+
+    turbine.logger.warn(messages.DELIVERY_DISABLED);
+  }
+
+  return targetSettings;
+}
+
+module.exports = {
+  initLibrarySettings: initLibrarySettings,
+  overridePublicApi: overridePublicApi
+};
+          }
+
+        },
+        "adobe-target-v2/lib/modules/event-util.js": {
+          "script": function(module, exports, require, turbine) {
+"use strict";
+
+function addEventListener(elem, type, handler) {
+  elem.addEventListener(type, handler);
+}
+
+function removeEventListener(elem, type, handler) {
+  elem.removeEventListener(type, handler);
+}
+
+module.exports = {
+  addEventListener: addEventListener,
+  removeEventListener: removeEventListener
+};
+          }
+
+        },
+        "adobe-target-v2/lib/modules/optin.js": {
+          "script": function(module, exports, require, turbine) {
+"use strict";
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
+/* eslint-disable import/no-extraneous-dependencies */
+var win = require("@adobe/reactor-window");
+
+var ADOBE = win.adobe;
+var IS_APPROVED = "isApproved";
+var OPTIN_ENABLED = "optinEnabled";
+var OPT_IN = "optIn";
+var FETCH_PERMISSIONS = "fetchPermissions";
+var CATEGORIES = "Categories";
+var TARGET = "TARGET";
+
+var _require = require("../targetSettings"),
+    targetSettings = _require.targetSettings;
+
+function isNil(value) {
+  var type = typeof value === "undefined" ? "undefined" : _typeof(value);
+  return type === "undefined" || value === null;
+}
+function isFunction(value) {
+  var type = typeof value === "undefined" ? "undefined" : _typeof(value);
+  return value !== null && (type === "object" || type === "function");
+}
+
+function isOptInAPIAvailable(optIn) {
+  return isFunction(optIn[FETCH_PERMISSIONS]) && isFunction(optIn[IS_APPROVED]);
+}
+
+function optInEnabled(adobe, optedInEnabled) {
+  if (!optedInEnabled) {
+    return false;
+  }
+  if (isNil(adobe)) {
+    return false;
+  }
+  if (isNil(adobe[OPT_IN])) {
+    return false;
+  }
+  return isOptInAPIAvailable(adobe[OPT_IN]);
+}
+
+function isCategoryOptedIn(optInApi, category) {
+  return optInApi[IS_APPROVED](category);
+}
+
+function isTargetApproved() {
+  var optInApi = ADOBE[OPT_IN];
+  var targetCategory = optInApi[CATEGORIES][TARGET];
+  return isCategoryOptedIn(optInApi, targetCategory);
+}
+
+function shouldUseOptIn() {
+  var optedInEnabled = targetSettings[OPTIN_ENABLED];
+  return optInEnabled(ADOBE, optedInEnabled);
+}
+
+module.exports = {
+  shouldUseOptIn: shouldUseOptIn,
+  isTargetApproved: isTargetApproved
+};
+          }
+
+        },
+        "adobe-target-v2/lib/targetSettings.js": {
+          "script": function(module, exports, require, turbine) {
+"use strict";
+
+var extensionSettings = turbine.getExtensionSettings();
+var targetSettings = extensionSettings.targetSettings || {};
+
+module.exports = {
+  extensionSettings: extensionSettings,
+  targetSettings: targetSettings
 };
           }
 
@@ -8533,37 +8726,6 @@ module.exports = bootstrapLaunch;
           }
 
         },
-        "adobe-target-v2/lib/modules/page-load.js": {
-          "script": function(module, exports, require, turbine) {
-"use strict";
-
-var _librarySettings = require("../librarySettings");
-
-var win = require("@adobe/reactor-window"); /* eslint-disable import/no-extraneous-dependencies */
-
-var overrideProps = require("./object-override");
-
-var _require = require("./params-store"),
-    getParams = _require.getParams,
-    getPageLoadParams = _require.getPageLoadParams;
-
-var _require2 = require("../targetSettings"),
-    targetSettings = _require2.targetSettings;
-
-module.exports = function (settings) {
-  targetSettings.mboxParams = getParams();
-  targetSettings.globalMboxParams = getPageLoadParams();
-
-  overrideProps(targetSettings, settings, ["bodyHidingEnabled", "bodyHiddenStyle"]);
-
-  overrideProps(targetSettings, win.targetGlobalSettings || {}, ["enabled", "bodyHidingEnabled", "bodyHiddenStyle"]);
-  overrideProps(targetSettings, _librarySettings.TARGET_DEFAULT_SETTINGS || {}, ["version"]);
-
-  return targetSettings;
-};
-          }
-
-        },
         "adobe-target-v2/lib/messages.js": {
           "script": function(module, exports, require, turbine) {
 "use strict";
@@ -8572,45 +8734,6 @@ module.exports = {
   ALREADY_INITIALIZED: "AT: Adobe Target has already been initialized.",
   DELIVERY_DISABLED: "AT: Adobe Target content delivery is disabled. Update your DOCTYPE to support Standards mode.",
   NO_REQUEST: "AT: Target library is either not loaded or disabled, no request will be executed"
-};
-          }
-
-        },
-        "adobe-target-v2/lib/librarySettings.js": {
-          "script": function(module, exports, require, turbine) {
-"use strict";
-
-var TARGET_DEFAULT_SETTINGS = {
-  version: "2.3.2"
-};
-
-module.exports = {
-  TARGET_DEFAULT_SETTINGS: TARGET_DEFAULT_SETTINGS
-};
-          }
-
-        },
-        "adobe-target-v2/lib/modules/object-override.js": {
-          "script": function(module, exports, require, turbine) {
-"use strict";
-
-function overrideProp(overriden, overriding, field, undef) {
-  if (overriding[field] !== undef) {
-    overriden[field] = overriding[field]; //eslint-disable-line
-  }
-}
-
-function subsetFilter(key) {
-  if (Array.isArray(this.subset)) {
-    return this.subset.indexOf(key) !== -1;
-  }
-  return true;
-}
-
-module.exports = function (overriden, overriding, subset) {
-  Object.keys(overriding).filter(subsetFilter, { subset: subset }).forEach(function (key) {
-    overrideProp(overriden, overriding, key);
-  });
 };
           }
 
@@ -8681,29 +8804,54 @@ module.exports = {
           }
 
         },
-        "adobe-target-v2/lib/targetSettings.js": {
+        "adobe-target-v2/lib/modules/object-override.js": {
           "script": function(module, exports, require, turbine) {
 "use strict";
 
-var extensionSettings = turbine.getExtensionSettings();
-var targetSettings = extensionSettings.targetSettings || {};
+function overrideProp(overriden, overriding, field, undef) {
+  if (overriding[field] !== undef) {
+    overriden[field] = overriding[field]; //eslint-disable-line
+  }
+}
 
-module.exports = {
-  extensionSettings: extensionSettings,
-  targetSettings: targetSettings
+function subsetFilter(key) {
+  if (Array.isArray(this.subset)) {
+    return this.subset.indexOf(key) !== -1;
+  }
+  return true;
+}
+
+module.exports = function (overriden, overriding, subset) {
+  Object.keys(overriding).filter(subsetFilter, { subset: subset }).forEach(function (key) {
+    overrideProp(overriden, overriding, key);
+  });
 };
           }
 
         },
-        "adobe-target-v2/lib/modules/load-target.js": {
+        "adobe-target-v2/lib/librarySettings.js": {
           "script": function(module, exports, require, turbine) {
 "use strict";
 
-/* eslint-disable import/no-extraneous-dependencies */
-var win = require("@adobe/reactor-window");
-var doc = require("@adobe/reactor-document");
-var Promise = require("@adobe/reactor-promise");
-var messages = require("../messages");
+var TARGET_DEFAULT_SETTINGS = {
+  version: "2.3.2"
+};
+
+module.exports = {
+  TARGET_DEFAULT_SETTINGS: TARGET_DEFAULT_SETTINGS
+};
+          }
+
+        },
+        "adobe-target-v2/lib/modules/page-load.js": {
+          "script": function(module, exports, require, turbine) {
+"use strict";
+
+var _librarySettings = require("../librarySettings");
+
+var win = require("@adobe/reactor-window"); /* eslint-disable import/no-extraneous-dependencies */
+
+var overrideProps = require("./object-override");
 
 var _require = require("./params-store"),
     getParams = _require.getParams,
@@ -8712,164 +8860,16 @@ var _require = require("./params-store"),
 var _require2 = require("../targetSettings"),
     targetSettings = _require2.targetSettings;
 
-var overrideProps = require("./object-override");
-
-var _require3 = require("../librarySettings"),
-    TARGET_DEFAULT_SETTINGS = _require3.TARGET_DEFAULT_SETTINGS;
-
-var OVERRIDABLE_SETTINGS = ["enabled", "clientCode", "imsOrgId", "serverDomain", "cookieDomain", "timeout", "defaultContentHiddenStyle", "defaultContentVisibleStyle", "bodyHiddenStyle", "bodyHidingEnabled", "selectorsPollingTimeout", "visitorApiTimeout", "overrideMboxEdgeServer", "overrideMboxEdgeServerTimeout", "optoutEnabled", "optinEnabled", "secureOnly", "supplementalDataIdParamTimeout", "authoringScriptUrl", "urlSizeLimit", "endpoint", "pageLoadEnabled", "viewsEnabled", "analyticsLogging", "serverState", "globalMboxName"];
-
-function isStandardMode(document) {
-  var compatMode = document.compatMode,
-      documentMode = document.documentMode;
-
-  var standardMode = compatMode && compatMode === "CSS1Compat";
-  var ie9OrModernBrowser = documentMode ? documentMode >= 9 : true;
-
-  return standardMode && ie9OrModernBrowser;
-}
-
-function overridePublicApi(window) {
-  /* eslint-disable no-param-reassign */
-  var noop = function noop() {};
-  var noopPromise = function noopPromise() {
-    return Promise.resolve();
-  };
-  window.adobe = window.adobe || {};
-  window.adobe.target = {
-    VERSION: "",
-    event: {},
-    getOffer: noop,
-    getOffers: noopPromise,
-    applyOffer: noop,
-    applyOffers: noopPromise,
-    sendNotifications: noop,
-    trackEvent: noop,
-    triggerView: noop,
-    registerExtension: noop,
-    init: noop
-  };
-  window.mboxCreate = noop;
-  window.mboxDefine = noop;
-  window.mboxUpdate = noop;
-  /* eslint-disable no-param-reassign */
-}
-
-function isLibraryPresent() {
-  return win.adobe && win.adobe.target && typeof win.adobe.target.getOffer !== "undefined";
-}
-
-function initLibrarySettings() {
-  if (isLibraryPresent()) {
-    turbine.logger.warn(messages.ALREADY_INITIALIZED);
-    return null;
-  }
-
+module.exports = function (settings) {
   targetSettings.mboxParams = getParams();
   targetSettings.globalMboxParams = getPageLoadParams();
 
-  overrideProps(targetSettings, win.targetGlobalSettings || {}, OVERRIDABLE_SETTINGS);
-  overrideProps(targetSettings, TARGET_DEFAULT_SETTINGS || {}, ["version"]);
+  overrideProps(targetSettings, settings, ["bodyHidingEnabled", "bodyHiddenStyle"]);
 
-  if (!isStandardMode(doc)) {
-    targetSettings.enabled = false;
-
-    turbine.logger.warn(messages.DELIVERY_DISABLED);
-  }
+  overrideProps(targetSettings, win.targetGlobalSettings || {}, ["enabled", "bodyHidingEnabled", "bodyHiddenStyle"]);
+  overrideProps(targetSettings, _librarySettings.TARGET_DEFAULT_SETTINGS || {}, ["version"]);
 
   return targetSettings;
-}
-
-module.exports = {
-  initLibrarySettings: initLibrarySettings,
-  overridePublicApi: overridePublicApi
-};
-          }
-
-        },
-        "adobe-target-v2/lib/modules/event-util.js": {
-          "script": function(module, exports, require, turbine) {
-"use strict";
-
-function addEventListener(elem, type, handler) {
-  elem.addEventListener(type, handler);
-}
-
-function removeEventListener(elem, type, handler) {
-  elem.removeEventListener(type, handler);
-}
-
-module.exports = {
-  addEventListener: addEventListener,
-  removeEventListener: removeEventListener
-};
-          }
-
-        },
-        "adobe-target-v2/lib/modules/optin.js": {
-          "script": function(module, exports, require, turbine) {
-"use strict";
-
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-/* eslint-disable import/no-extraneous-dependencies */
-var win = require("@adobe/reactor-window");
-
-var ADOBE = win.adobe;
-var IS_APPROVED = "isApproved";
-var OPTIN_ENABLED = "optinEnabled";
-var OPT_IN = "optIn";
-var FETCH_PERMISSIONS = "fetchPermissions";
-var CATEGORIES = "Categories";
-var TARGET = "TARGET";
-
-var _require = require("../targetSettings"),
-    targetSettings = _require.targetSettings;
-
-function isNil(value) {
-  var type = typeof value === "undefined" ? "undefined" : _typeof(value);
-  return type === "undefined" || value === null;
-}
-function isFunction(value) {
-  var type = typeof value === "undefined" ? "undefined" : _typeof(value);
-  return value !== null && (type === "object" || type === "function");
-}
-
-function isOptInAPIAvailable(optIn) {
-  return isFunction(optIn[FETCH_PERMISSIONS]) && isFunction(optIn[IS_APPROVED]);
-}
-
-function optInEnabled(adobe, optedInEnabled) {
-  if (!optedInEnabled) {
-    return false;
-  }
-  if (isNil(adobe)) {
-    return false;
-  }
-  if (isNil(adobe[OPT_IN])) {
-    return false;
-  }
-  return isOptInAPIAvailable(adobe[OPT_IN]);
-}
-
-function isCategoryOptedIn(optInApi, category) {
-  return optInApi[IS_APPROVED](category);
-}
-
-function isTargetApproved() {
-  var optInApi = ADOBE[OPT_IN];
-  var targetCategory = optInApi[CATEGORIES][TARGET];
-  return isCategoryOptedIn(optInApi, targetCategory);
-}
-
-function shouldUseOptIn() {
-  var optedInEnabled = targetSettings[OPTIN_ENABLED];
-  return optInEnabled(ADOBE, optedInEnabled);
-}
-
-module.exports = {
-  shouldUseOptIn: shouldUseOptIn,
-  isTargetApproved: isTargetApproved
 };
           }
 
@@ -8908,7 +8908,7 @@ module.exports = {
           "supplementalDataIdParamTimeout": 30
         }
       },
-      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/c52952fe2ac5/hostedLibFiles/EP269792aa7319457ea7dd670d3f2f68e5/"
+      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/15a347b44599/hostedLibFiles/EP269792aa7319457ea7dd670d3f2f68e5/"
     },
     "core": {
       "displayName": "Core",
@@ -9078,7 +9078,7 @@ module.exports = {
 
         }
       },
-      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/c52952fe2ac5/hostedLibFiles/EP2e2f86ba46954a2b8a2b3bb72276b9f8/"
+      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/15a347b44599/hostedLibFiles/EP2e2f86ba46954a2b8a2b3bb72276b9f8/"
     },
     "adobe-analytics": {
       "displayName": "Adobe Analytics",
@@ -9941,7 +9941,7 @@ module.exports = {
           ]
         }
       },
-      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/c52952fe2ac5/hostedLibFiles/EPbde2f7ca14e540399dcc1f8208860b7b/"
+      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/15a347b44599/hostedLibFiles/EPbde2f7ca14e540399dcc1f8208860b7b/"
     },
     "aam-dil-extension": {
       "displayName": "Adobe Audience Manager (DIL)",
@@ -10147,7 +10147,7 @@ return siteCatalystModuleConfiguration;
           }
         }
       },
-      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/c52952fe2ac5/hostedLibFiles/EP4e83caf1f501401c8757a221425cd7c8/"
+      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/15a347b44599/hostedLibFiles/EP4e83caf1f501401c8757a221425cd7c8/"
     },
     "adobe-mcid": {
       "displayName": "Experience Cloud ID Service",
@@ -10345,7 +10345,7 @@ module.exports = timeUnits;
       "settings": {
         "orgId": "97D1F3F459CE0AD80A495CBE@AdobeOrg"
       },
-      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/c52952fe2ac5/hostedLibFiles/EP6437fa78ab024946a211397689052381/"
+      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/4bbb6b9dc376/15a347b44599/hostedLibFiles/EP6437fa78ab024946a211397689052381/"
     }
   },
   "company": {
@@ -10363,31 +10363,8 @@ module.exports = timeUnits;
   },
   "rules": [
     {
-      "id": "RL069a602c566347368ad638b8f50788c0",
-      "name": "Analytics",
-      "events": [
-        {
-          "modulePath": "core/src/lib/events/libraryLoaded.js",
-          "settings": {
-          },
-          "ruleOrder": 50.0
-        }
-      ],
-      "conditions": [
-
-      ],
-      "actions": [
-        {
-          "modulePath": "adobe-analytics/src/lib/actions/sendBeacon.js",
-          "settings": {
-            "type": "page"
-          }
-        }
-      ]
-    },
-    {
-      "id": "RLb452a591f7574c41b633a384d68eae77",
-      "name": "Target",
+      "id": "RL2ac704b71a794c04a2b33cc91ac1641b",
+      "name": "Send Beacons",
       "events": [
         {
           "modulePath": "core/src/lib/events/libraryLoaded.js",
@@ -10410,6 +10387,12 @@ module.exports = timeUnits;
           "settings": {
             "bodyHiddenStyle": "body {opacity: 0}",
             "bodyHidingEnabled": true
+          }
+        },
+        {
+          "modulePath": "adobe-analytics/src/lib/actions/sendBeacon.js",
+          "settings": {
+            "type": "page"
           }
         }
       ]

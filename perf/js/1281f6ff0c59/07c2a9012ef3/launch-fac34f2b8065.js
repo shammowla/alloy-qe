@@ -2,8 +2,8 @@
   window._satellite = window._satellite || {};
   window._satellite.container = {
   "buildInfo": {
-    "buildDate": "2020-09-16T14:40:12Z",
-    "environment": "development",
+    "buildDate": "2020-09-25T16:19:23Z",
+    "environment": "production",
     "turbineBuildDate": "2020-08-10T20:14:17Z",
     "turbineVersion": "27.0.0"
   },
@@ -178,7 +178,7 @@ module.exports = {
 
         }
       },
-      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/07c2a9012ef3/7fa073a452cc/hostedLibFiles/EP2e2f86ba46954a2b8a2b3bb72276b9f8/"
+      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/07c2a9012ef3/58438425c73e/hostedLibFiles/EP2e2f86ba46954a2b8a2b3bb72276b9f8/"
     },
     "adobe-alloy": {
       "displayName": "AEP Web SDK",
@@ -8097,7 +8097,7 @@ module.exports = function (_ref) {
           }
         ]
       },
-      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/07c2a9012ef3/7fa073a452cc/hostedLibFiles/EP0b4f640e01c547c98cba96b0d6d8dfd5/"
+      "hostedLibFilesBaseUrl": "/perf/js/1281f6ff0c59/07c2a9012ef3/58438425c73e/hostedLibFiles/EP0b4f640e01c547c98cba96b0d6d8dfd5/"
     }
   },
   "company": {
